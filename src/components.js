@@ -1,4 +1,4 @@
-// Component definitions for QET Web (Analog)
+// Component definitions for QET Web (Analogue)
 // Each component definition describes: display name, default size, ports, and a drawing function
 
 export const COMPONENT_DEFS = {
