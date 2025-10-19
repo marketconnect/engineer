@@ -35,6 +35,13 @@ const state = {
 
 const GRID = 10;
 
+// Unit conversion for frame dimensions
+const PX_PER_MM = 96 / 25.4;
+function pxToMm(px) { return px / PX_PER_MM; }
+function mmToPx(mm) { return mm * PX_PER_MM; }
+function isFrameType(type) { return typeof type === 'string' && type.startsWith('frame_'); }
+function getElementSize(el, def) { const w = (typeof el.w === 'number' ? el.w : def.w); const h = (typeof el.h === 'number' ? el.h : def.h); return { w, h }; }
+
 // Initialize palette
 for (const type of PALETTE_ORDER) {
   const item = createPaletteItem(type);
@@ -133,7 +140,13 @@ function redo() {
 function addElement({ type, x, y, rot = 0, label = '' }) {
   pushHistory();
   const id = uid('el');
-  state.elements.push({ id, type, x, y, rot, label });
+  const def = COMPONENT_DEFS[type];
+  const base = { id, type, x, y, rot, label };
+  if (def && isFrameType(type)) {
+    base.w = def.w;
+    base.h = def.h;
+  }
+  state.elements.push(base);
   render();
   select({ kind: 'element', id });
 }
@@ -192,6 +205,7 @@ function updateInspector() {
   if (state.selected.kind === 'element') {
     const el = state.elements.find(e => e.id === state.selected.id);
     if (!el) { inspectorEl.innerHTML = '<p>No selection</p>'; return; }
+    const def = COMPONENT_DEFS[el.type];
     const wrap = document.createElement('div');
     wrap.innerHTML = `
       <div class="row"><label>ID</label><div>${el.id}</div></div>
@@ -219,6 +233,30 @@ function updateInspector() {
     yIn.addEventListener('change', apply);
     rIn.addEventListener('change', apply);
     lIn.addEventListener('change', apply);
+
+    if (def && isFrameType(el.type)) {
+      const { w, h } = getElementSize(el, def);
+      const sizeRowW = document.createElement('div');
+      sizeRowW.className = 'row';
+      sizeRowW.innerHTML = `<label>Width (mm)</label><input id="ins-w" type="number" step="1" value="${pxToMm(w).toFixed(1)}" />`;
+      const sizeRowH = document.createElement('div');
+      sizeRowH.className = 'row';
+      sizeRowH.innerHTML = `<label>Height (mm)</label><input id="ins-h" type="number" step="1" value="${pxToMm(h).toFixed(1)}" />`;
+      wrap.appendChild(sizeRowW);
+      wrap.appendChild(sizeRowH);
+      const wIn = sizeRowW.querySelector('#ins-w');
+      const hIn = sizeRowH.querySelector('#ins-h');
+      const applySize = () => {
+        pushHistory();
+        const newWmm = parseFloat(wIn.value);
+        const newHmm = parseFloat(hIn.value);
+        if (!Number.isNaN(newWmm)) el.w = Math.max(10, mmToPx(newWmm));
+        if (!Number.isNaN(newHmm)) el.h = Math.max(10, mmToPx(newHmm));
+        render();
+      };
+      wIn.addEventListener('change', applySize);
+      hIn.addEventListener('change', applySize);
+    }
   } else if (state.selected.kind === 'elements') {
     const count = Array.isArray(state.selected.ids) ? state.selected.ids.length : 0;
     inspectorEl.innerHTML = `<div>${count} element(s) selected</div>`;
@@ -255,7 +293,8 @@ function render() {
 
     // body
     const body = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    def.drawBody(body, def.w, def.h);
+    const { w, h } = getElementSize(el, def);
+    def.drawBody(body, w, h);
     group.appendChild(body);
 
     // label
@@ -267,8 +306,8 @@ function render() {
         label.setAttribute('y', 12);
         label.setAttribute('text-anchor', 'start');
       } else {
-        label.setAttribute('x', def.w / 2);
-        label.setAttribute('y', def.h + 12);
+        label.setAttribute('x', w / 2);
+        label.setAttribute('y', h + 12);
         label.setAttribute('text-anchor', 'middle');
       }
       label.setAttribute('class', 'label');
@@ -312,7 +351,7 @@ function render() {
     });
 
     // transform
-    group.setAttribute('transform', `translate(${el.x} ${el.y}) rotate(${el.rot} ${def.w / 2} ${def.h / 2})`);
+    group.setAttribute('transform', `translate(${el.x} ${el.y}) rotate(${el.rot} ${w / 2} ${h / 2})`);
 
     // click to select
     group.addEventListener('click', (e) => { e.stopPropagation(); select({ kind: 'element', id: el.id }); });
@@ -337,11 +376,12 @@ function getPortGlobalPosition(elId, portId) {
   const def = COMPONENT_DEFS[el.type];
   const p = def.ports.find(q => q.id === portId);
   if (!p) return null;
-  return localToGlobal(el, def, p.x, p.y);
+  const { w, h } = getElementSize(el, def);
+  return localToGlobal(el, w, h, p.x, p.y);
 }
 
-function localToGlobal(el, def, px, py) {
-  const cx = def.w / 2, cy = def.h / 2;
+function localToGlobal(el, w, h, px, py) {
+  const cx = w / 2, cy = h / 2;
   const rad = (el.rot || 0) * Math.PI / 180;
   const dx = px - cx; const dy = py - cy;
   const rx = dx * Math.cos(rad) - dy * Math.sin(rad) + cx;
@@ -352,7 +392,7 @@ function localToGlobal(el, def, px, py) {
 function getElementBBox(el) {
   const def = COMPONENT_DEFS[el.type];
   if (!def) return { x1: el.x, y1: el.y, x2: el.x, y2: el.y };
-  let w = def.w, h = def.h;
+  let { w, h } = getElementSize(el, def);
   if (el.type === 'text') {
     const approxW = (el.label ? el.label.length : 4) * 7;
     const approxH = 14;
@@ -364,7 +404,7 @@ function getElementBBox(el) {
     { x: w, y: h },
     { x: 0, y: h },
   ];
-  const gpts = pts.map(p => localToGlobal(el, def, p.x, p.y));
+  const gpts = pts.map(p => localToGlobal(el, w, h, p.x, p.y));
   const xs = gpts.map(p => p.x);
   const ys = gpts.map(p => p.y);
   return { x1: Math.min(...xs), y1: Math.min(...ys), x2: Math.max(...xs), y2: Math.max(...ys) };
