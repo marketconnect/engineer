@@ -15,6 +15,7 @@ const inspectorEl = document.getElementById('inspector-content');
 
 const TOOL_SELECT = 'select';
 const TOOL_WIRE = 'wire';
+const TOOL_TEXT = 'text';
 
 const state = {
   tool: TOOL_SELECT,
@@ -162,10 +163,26 @@ function removeWire(id) {
   }
 }
 
+function removeElements(ids) {
+  if (!ids || ids.length === 0) return;
+  pushHistory();
+  const set = new Set(ids);
+  state.wires = state.wires.filter(w => !set.has(w.from.el) && !set.has(w.to.el));
+  state.elements = state.elements.filter(e => !set.has(e.id));
+  state.selected = null;
+}
+
 function select(sel) {
   state.selected = sel;
   render();
   updateInspector();
+}
+
+function isElementSelected(id) {
+  if (!state.selected) return false;
+  if (state.selected.kind === 'element') return state.selected.id === id;
+  if (state.selected.kind === 'elements') return Array.isArray(state.selected.ids) && state.selected.ids.includes(id);
+  return false;
 }
 
 function updateInspector() {
@@ -201,6 +218,9 @@ function updateInspector() {
     yIn.addEventListener('change', apply);
     rIn.addEventListener('change', apply);
     lIn.addEventListener('change', apply);
+  } else if (state.selected.kind === 'elements') {
+    const count = Array.isArray(state.selected.ids) ? state.selected.ids.length : 0;
+    inspectorEl.innerHTML = `<div>${count} element(s) selected</div>`;
   } else if (state.selected.kind === 'wire') {
     const w = state.wires.find(x => x.id === state.selected.id);
     inspectorEl.innerHTML = w ? `<div>Wire: ${w.id}</div>` : '<p>No selection</p>';
@@ -229,7 +249,7 @@ function render() {
   for (const el of state.elements) {
     const def = COMPONENT_DEFS[el.type];
     const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    group.setAttribute('class', 'element' + ((state.selected && state.selected.kind === 'element' && state.selected.id === el.id) ? ' selected' : ''));
+    group.setAttribute('class', 'element' + (isElementSelected(el.id) ? ' selected' : ''));
     group.dataset.id = el.id;
 
     // body
@@ -241,9 +261,15 @@ function render() {
     if (el.label) {
       const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       label.textContent = el.label;
-      label.setAttribute('x', def.w / 2);
-      label.setAttribute('y', def.h + 12);
-      label.setAttribute('text-anchor', 'middle');
+      if (el.type === 'text') {
+        label.setAttribute('x', 0);
+        label.setAttribute('y', 12);
+        label.setAttribute('text-anchor', 'start');
+      } else {
+        label.setAttribute('x', def.w / 2);
+        label.setAttribute('y', def.h + 12);
+        label.setAttribute('text-anchor', 'middle');
+      }
       label.setAttribute('class', 'label');
       group.appendChild(label);
     }
@@ -271,8 +297,17 @@ function render() {
       const pt = clientToViewport(e.clientX, e.clientY);
       // push state before starting drag to allow undo of the move
       pushHistory();
-      state.drag = { id: el.id, startX: pt.x, startY: pt.y, origX: el.x, origY: el.y };
-      select({ kind: 'element', id: el.id });
+      const multi = state.selected && state.selected.kind === 'elements' && state.selected.ids.includes(el.id);
+      if (multi) {
+        const origs = state.selected.ids.map(i => {
+          const ee = state.elements.find(x => x.id === i);
+          return { id: i, x: ee ? ee.x : 0, y: ee ? ee.y : 0 };
+        });
+        state.drag = { ids: state.selected.ids.slice(), startX: pt.x, startY: pt.y, origs };
+      } else {
+        state.drag = { id: el.id, startX: pt.x, startY: pt.y, origX: el.x, origY: el.y };
+        select({ kind: 'element', id: el.id });
+      }
     });
 
     // transform
@@ -311,6 +346,27 @@ function localToGlobal(el, def, px, py) {
   const rx = dx * Math.cos(rad) - dy * Math.sin(rad) + cx;
   const ry = dx * Math.sin(rad) + dy * Math.cos(rad) + cy;
   return { x: el.x + rx, y: el.y + ry };
+}
+
+function getElementBBox(el) {
+  const def = COMPONENT_DEFS[el.type];
+  if (!def) return { x1: el.x, y1: el.y, x2: el.x, y2: el.y };
+  let w = def.w, h = def.h;
+  if (el.type === 'text') {
+    const approxW = (el.label ? el.label.length : 4) * 7;
+    const approxH = 14;
+    w = approxW; h = approxH;
+  }
+  const pts = [
+    { x: 0, y: 0 },
+    { x: w, y: 0 },
+    { x: w, y: h },
+    { x: 0, y: h },
+  ];
+  const gpts = pts.map(p => localToGlobal(el, def, p.x, p.y));
+  const xs = gpts.map(p => p.x);
+  const ys = gpts.map(p => p.y);
+  return { x1: Math.min(...xs), y1: Math.min(...ys), x2: Math.max(...xs), y2: Math.max(...ys) };
 }
 
 // Connector events
@@ -408,9 +464,51 @@ svg.addEventListener('mousedown', (e) => {
     window.addEventListener('mouseup', up);
     return;
   }
+  const pt = clientToViewport(e.clientX, e.clientY);
+  if (state.tool === TOOL_TEXT && e.button === 0) {
+    e.preventDefault();
+    const x = snap(pt.x, GRID);
+    const y = snap(pt.y, GRID);
+    addElement({ type: 'text', x, y, rot: 0, label: 'Text' });
+    return;
+  }
   // clear selection and wiring if clicked empty
   select(null);
   if (state.wiring) { state.wiring = null; removeTempWire(); }
+  if (state.tool === TOOL_SELECT && e.button === 0) {
+    const start = { x: pt.x, y: pt.y };
+    const rectEl = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rectEl.setAttribute('class', 'selection');
+    rectEl.setAttribute('x', start.x);
+    rectEl.setAttribute('y', start.y);
+    rectEl.setAttribute('width', 0);
+    rectEl.setAttribute('height', 0);
+    viewport.appendChild(rectEl);
+    const move = (ev) => {
+      const q = clientToViewport(ev.clientX, ev.clientY);
+      const x1 = Math.min(start.x, q.x), y1 = Math.min(start.y, q.y);
+      const x2 = Math.max(start.x, q.x), y2 = Math.max(start.y, q.y);
+      rectEl.setAttribute('x', x1);
+      rectEl.setAttribute('y', y1);
+      rectEl.setAttribute('width', x2 - x1);
+      rectEl.setAttribute('height', y2 - y1);
+    };
+    const up = (ev) => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      const q = clientToViewport(ev.clientX, ev.clientY);
+      const x1 = Math.min(start.x, q.x), y1 = Math.min(start.y, q.y);
+      const x2 = Math.max(start.x, q.x), y2 = Math.max(start.y, q.y);
+      const ids = state.elements.filter(el => {
+        const b = getElementBBox(el);
+        return b.x1 >= x1 && b.y1 >= y1 && b.x2 <= x2 && b.y2 <= y2;
+      }).map(el => el.id);
+      rectEl.remove();
+      if (ids.length > 0) select({ kind: 'elements', ids }); else select(null);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  }
 });
 
 window.addEventListener('mousemove', (e) => {
@@ -418,11 +516,22 @@ window.addEventListener('mousemove', (e) => {
     const pt = clientToViewport(e.clientX, e.clientY);
     const dx = pt.x - state.drag.startX;
     const dy = pt.y - state.drag.startY;
-    const el = state.elements.find(x => x.id === state.drag.id);
-    if (el) {
-      el.x = snap(state.drag.origX + dx, GRID);
-      el.y = snap(state.drag.origY + dy, GRID);
+    if (state.drag.ids && state.drag.origs) {
+      for (const o of state.drag.origs) {
+        const el = state.elements.find(x => x.id === o.id);
+        if (el) {
+          el.x = snap(o.x + dx, GRID);
+          el.y = snap(o.y + dy, GRID);
+        }
+      }
       render();
+    } else {
+      const el = state.elements.find(x => x.id === state.drag.id);
+      if (el) {
+        el.x = snap(state.drag.origX + dx, GRID);
+        el.y = snap(state.drag.origY + dy, GRID);
+        render();
+      }
     }
   }
 });
@@ -440,17 +549,105 @@ document.getElementById('tool-select').addEventListener('click', () => setTool(T
 
 document.getElementById('tool-wire').addEventListener('click', () => setTool(TOOL_WIRE));
 
+document.getElementById('tool-text').addEventListener('click', () => setTool(TOOL_TEXT));
+
 // undo/redo
 const undoBtn = document.getElementById('btn-undo');
 const redoBtn = document.getElementById('btn-redo');
 if (undoBtn) undoBtn.addEventListener('click', () => undo());
 if (redoBtn) redoBtn.addEventListener('click', () => redo());
 
+// new/select-all/duplicate/fit
+const newBtn = document.getElementById('btn-new');
+if (newBtn) newBtn.addEventListener('click', () => {
+  pushHistory();
+  state.elements = [];
+  state.wires = [];
+  state.selected = null;
+  render(); updateInspector();
+});
+
+document.getElementById('btn-select-all').addEventListener('click', () => {
+  const ids = state.elements.map(e => e.id);
+  if (ids.length > 0) select({ kind: 'elements', ids });
+});
+
+function duplicateSelected() {
+  if (!state.selected) return;
+  const offset = 20;
+  if (state.selected.kind === 'element') {
+    const el = state.elements.find(e => e.id === state.selected.id);
+    if (!el) return;
+    pushHistory();
+    const id = uid('el');
+    state.elements.push({ ...el, id, x: el.x + offset, y: el.y + offset });
+    select({ kind: 'element', id });
+    render(); updateInspector();
+  } else if (state.selected.kind === 'elements') {
+    const idsSet = new Set(state.selected.ids);
+    pushHistory();
+    const map = new Map();
+    const newIds = [];
+    for (const id of state.selected.ids) {
+      const el = state.elements.find(e => e.id === id);
+      if (!el) continue;
+      const nid = uid('el');
+      map.set(id, nid);
+      newIds.push(nid);
+      state.elements.push({ ...el, id: nid, x: el.x + offset, y: el.y + offset });
+    }
+    const newWires = [];
+    for (const w of state.wires) {
+      if (idsSet.has(w.from.el) && idsSet.has(w.to.el)) {
+        newWires.push({ id: uid('w'), from: { el: map.get(w.from.el), port: w.from.port }, to: { el: map.get(w.to.el), port: w.to.port } });
+      }
+    }
+    state.wires.push(...newWires);
+    select({ kind: 'elements', ids: newIds });
+    render(); updateInspector();
+  }
+}
+
+document.getElementById('btn-duplicate').addEventListener('click', duplicateSelected);
+
+function zoomToFit() {
+  if (state.elements.length === 0) { state.zoom = 1; state.panX = 0; state.panY = 0; applyViewportTransform(); return; }
+  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+  for (const el of state.elements) {
+    const b = getElementBBox(el);
+    x1 = Math.min(x1, b.x1); y1 = Math.min(y1, b.y1);
+    x2 = Math.max(x2, b.x2); y2 = Math.max(y2, b.y2);
+  }
+  const width = svgContainer.clientWidth || 800;
+  const height = svgContainer.clientHeight || 600;
+  const padding = 40;
+  const bboxW = Math.max(1, x2 - x1);
+  const bboxH = Math.max(1, y2 - y1);
+  const scaleX = (width - padding * 2) / bboxW;
+  const scaleY = (height - padding * 2) / bboxH;
+  const scale = clamp(Math.min(scaleX, scaleY), 0.2, 5);
+  state.zoom = scale;
+  state.panX = padding - x1 * scale;
+  state.panY = padding - y1 * scale;
+  applyViewportTransform();
+}
+
+document.getElementById('btn-zoom-fit').addEventListener('click', zoomToFit);
+
 // rotate and delete
 function rotateSelected(delta) {
-  if (!state.selected || state.selected.kind !== 'element') return;
-  const el = state.elements.find(e => e.id === state.selected.id);
-  if (el) { pushHistory(); el.rot = ((el.rot || 0) + delta + 360) % 360; render(); }
+  if (!state.selected) return;
+  if (state.selected.kind === 'element') {
+    const el = state.elements.find(e => e.id === state.selected.id);
+    if (el) { pushHistory(); el.rot = ((el.rot || 0) + delta + 360) % 360; render(); }
+  } else if (state.selected.kind === 'elements') {
+    pushHistory();
+    for (const id of state.selected.ids) {
+      const el = state.elements.find(e => e.id === id);
+      if (el) el.rot = ((el.rot || 0) + delta + 360) % 360;
+    }
+    render();
+  }
 }
 
 document.getElementById('btn-rotate-left').addEventListener('click', () => rotateSelected(-90));
@@ -460,7 +657,8 @@ document.getElementById('btn-rotate-right').addEventListener('click', () => rota
 document.getElementById('btn-delete').addEventListener('click', () => {
   if (!state.selected) return;
   if (state.selected.kind === 'element') removeElement(state.selected.id);
-  if (state.selected.kind === 'wire') removeWire(state.selected.id);
+  else if (state.selected.kind === 'elements') removeElements(state.selected.ids);
+  else if (state.selected.kind === 'wire') removeWire(state.selected.id);
   render(); updateInspector();
 });
 
@@ -522,10 +720,18 @@ document.getElementById('btn-load').addEventListener('click', () => {
 window.addEventListener('keydown', (e) => {
   if (e.key === 'v' || e.key === 'V') setTool(TOOL_SELECT);
   if (e.key === 'w' || e.key === 'W') setTool(TOOL_WIRE);
+  if (e.key === 't' || e.key === 'T') setTool(TOOL_TEXT);
+  if (e.key === 'Escape') {
+    if (state.wiring) { state.wiring = null; removeTempWire(); }
+    else select(null);
+  }
   if (e.key === 'Delete') {
     const b = document.getElementById('btn-delete');
     b.click();
   }
+  if (e.ctrlKey && (e.key === 'a' || e.key === 'A')) { e.preventDefault(); const ids = state.elements.map(e => e.id); if (ids.length) select({ kind: 'elements', ids }); }
+  if (e.ctrlKey && (e.key === 'n' || e.key === 'N')) { e.preventDefault(); const b = document.getElementById('btn-new'); if (b) b.click(); }
+  if (e.ctrlKey && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); duplicateSelected(); }
   if (e.ctrlKey && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); undo(); }
   if (e.ctrlKey && (e.key === 'y' || (e.shiftKey && (e.key === 'Z' || e.key === 'z')))) { e.preventDefault(); redo(); }
   if (e.key === 'r') rotateSelected(-90);
