@@ -71,7 +71,8 @@ function onPaletteMouseDown(type) {
         const pt = clientToViewport(ev.clientX, ev.clientY);
         const x = snap(pt.x - def.w / 2, GRID);
         const y = snap(pt.y - def.h / 2, GRID);
-        addElement({ type, x, y, rot: 0, label: def.name });
+        const defaultLabel = (typeof def.defaultLabel !== 'undefined') ? def.defaultLabel : def.name;
+        addElement({ type, x, y, rot: 0, label: defaultLabel });
       }
     };
     window.addEventListener('mousemove', move);
