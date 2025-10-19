@@ -8,10 +8,15 @@
 </head>
 <body>
   <header class="app-header">
-    <div class="brand">QET Web (Analogue)</div>
+    <div class="brand"><img src="./qelectrotech/logo.png" alt="QET" /> QET Web (Analogue)</div>
     <div class="toolbar">
       <button id="tool-select" data-tool="select" class="tool-button active" title="Select (V)">Select</button>
       <button id="tool-wire" data-tool="wire" class="tool-button" title="Wire (W)">Wire</button>
+      <button id="tool-text" data-tool="text" class="tool-button" title="Text (T)">Text</button>
+      <div class="divider"></div>
+      <button id="btn-new" title="New (Ctrl+N)">New</button>
+      <button id="btn-select-all" title="Select All (Ctrl+A)">Select All</button>
+      <button id="btn-duplicate" title="Duplicate (Ctrl+D)">Duplicate</button>
       <div class="divider"></div>
       <button id="btn-undo" title="Undo (Ctrl+Z)">Undo</button>
       <button id="btn-redo" title="Redo (Ctrl+Y)">Redo</button>
@@ -23,6 +28,7 @@
       <button id="btn-zoom-in" title="Zoom In (Ctrl +)">+</button>
       <button id="btn-zoom-out" title="Zoom Out (Ctrl -)">−</button>
       <button id="btn-zoom-reset" title="Reset Zoom (Ctrl 0)">100%</button>
+      <button id="btn-zoom-fit" title="Fit to Window">Fit</button>
       <div class="divider"></div>
       <button id="btn-export" title="Export JSON">Export</button>
       <label class="import-label" for="file-import">Import</label>
@@ -30,7 +36,7 @@
       <button id="btn-save" title="Save to browser">Save</button>
       <button id="btn-load" title="Load from browser">Load</button>
       <div class="divider"></div>
-      <span class="hint">Pan: Space + drag • Zoom: Ctrl + Wheel</span>
+      <span class="hint">Pan: Space + drag • Zoom: Ctrl + Wheel • Cancel: Esc</span>
     </div>
   </header>
 

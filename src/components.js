@@ -167,6 +167,15 @@ export const COMPONENT_DEFS = {
       g.appendChild(circle(w / 2, h / 2, 4));
     },
   },
+  text: {
+    name: "Text",
+    w: 80,
+    h: 20,
+    ports: [],
+    drawBody(g, w, h) {
+      // no graphic body; label is rendered separately
+    },
+  },
 };
 
 export const PALETTE_ORDER = [
@@ -178,6 +187,7 @@ export const PALETTE_ORDER = [
   "ground",
   "vcc",
   "terminal",
+  "text",
 ];
 
 export function createPaletteItem(type) {
