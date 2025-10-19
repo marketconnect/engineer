@@ -1,6 +1,10 @@
 // Component definitions for QET Web (Analogue)
 // Each component definition describes: display name, default size, ports, and a drawing function
 
+// Unit helpers
+const PX_PER_MM = 96 / 25.4;
+function mm(v) { return v * PX_PER_MM; }
+
 export const COMPONENT_DEFS = {
   resistor: {
     name: "Resistor",
@@ -176,6 +180,52 @@ export const COMPONENT_DEFS = {
       // no graphic body; label is rendered separately
     },
   },
+  // Standard frames according to ISO 5457/7200
+  frame_iso_a4_landscape: {
+    name: "ISO A4 Frame",
+    defaultLabel: "",
+    w: mm(297),
+    h: mm(210),
+    ports: [],
+    drawBody(g, w, h) {
+      const margins = { left: mm(10), right: mm(10), top: mm(10), bottom: mm(10) };
+      drawStandardFrame(g, w, h, margins, mm(180), mm(55));
+    },
+  },
+  frame_iso_a3_landscape: {
+    name: "ISO A3 Frame",
+    defaultLabel: "",
+    w: mm(420),
+    h: mm(297),
+    ports: [],
+    drawBody(g, w, h) {
+      const margins = { left: mm(20), right: mm(10), top: mm(10), bottom: mm(10) };
+      drawStandardFrame(g, w, h, margins, mm(180), mm(55));
+    },
+  },
+  // Standard frames according to GOST (ESKD)
+  frame_gost_a4_landscape: {
+    name: "GOST A4 Frame",
+    defaultLabel: "",
+    w: mm(297),
+    h: mm(210),
+    ports: [],
+    drawBody(g, w, h) {
+      const margins = { left: mm(20), right: mm(5), top: mm(5), bottom: mm(5) };
+      drawStandardFrame(g, w, h, margins, mm(180), mm(55));
+    },
+  },
+  frame_gost_a3_landscape: {
+    name: "GOST A3 Frame",
+    defaultLabel: "",
+    w: mm(420),
+    h: mm(297),
+    ports: [],
+    drawBody(g, w, h) {
+      const margins = { left: mm(20), right: mm(5), top: mm(5), bottom: mm(5) };
+      drawStandardFrame(g, w, h, margins, mm(180), mm(55));
+    },
+  },
 };
 
 export const PALETTE_ORDER = [
@@ -188,6 +238,10 @@ export const PALETTE_ORDER = [
   "vcc",
   "terminal",
   "text",
+  "frame_iso_a4_landscape",
+  "frame_iso_a3_landscape",
+  "frame_gost_a4_landscape",
+  "frame_gost_a3_landscape",
 ];
 
 export function createPaletteItem(type) {
@@ -236,4 +290,48 @@ function circle(cx, cy, r) {
   c.setAttribute("r", r);
   c.setAttribute("class", "body");
   return c;
+}
+
+function rect(x, y, w, h) {
+  const r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  r.setAttribute("x", x);
+  r.setAttribute("y", y);
+  r.setAttribute("width", w);
+  r.setAttribute("height", h);
+  r.setAttribute("class", "body");
+  r.setAttribute("fill", "none");
+  return r;
+}
+
+function drawStandardFrame(g, w, h, margins, titleW, titleH) {
+  // Outer page border
+  const outer = rect(0, 0, w, h);
+  g.appendChild(outer);
+
+  // Inner frame border inside margins
+  const innerX = margins.left;
+  const innerY = margins.top;
+  const innerW = Math.max(0, w - margins.left - margins.right);
+  const innerH = Math.max(0, h - margins.top - margins.bottom);
+  const inner = rect(innerX, innerY, innerW, innerH);
+  g.appendChild(inner);
+
+  // Title block placed at bottom-right inside inner frame
+  const tw = Math.min(titleW, innerW);
+  const th = Math.min(titleH, innerH);
+  const tx = innerX + innerW - tw;
+  const ty = innerY + innerH - th;
+  const title = rect(tx, ty, tw, th);
+  g.appendChild(title);
+
+  // Simple subdivision lines inside title block for structure (not strictly standardised here)
+  // Vertical subdivision ~20mm from left
+  const v1 = tx + Math.min(mm(20), tw * 0.25);
+  g.appendChild(line(v1, ty, v1, ty + th));
+  // Vertical subdivision ~100mm from left
+  const v2 = tx + Math.min(mm(100), tw * 0.75);
+  g.appendChild(line(v2, ty, v2, ty + th));
+  // Horizontal subdivision ~15mm from bottom
+  const h1 = ty + Math.min(th - mm(15), th * 0.7);
+  g.appendChild(line(tx, h1, tx + tw, h1));
 }
