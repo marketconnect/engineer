@@ -507,7 +507,7 @@ document.getElementById('file-import').addEventListener('change', (e) => {
   reader.readAsText(file);
 });
 
-const STORAGE_KEY = 'qet-web-analog';
+const STORAGE_KEY = 'qet-web-analogue';
 
 document.getElementById('btn-save').addEventListener('click', () => {
   localStorage.setItem(STORAGE_KEY, serializeDiagram());
