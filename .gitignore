@@ -1,0 +1,23 @@
+# General
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+
+# Node/JS
+node_modules/
+dist/
+build/
+.cache/
+
+# Coverage
+coverage/
+
+# Env
+.env
+.env.*
+
+# Editors
+.vscode/
+.idea/

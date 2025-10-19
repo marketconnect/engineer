@@ -1,0 +1,118 @@
+* { box-sizing: border-box; }
+:root {
+  --bg: #0f172a;
+  --panel: #111827;
+  --panel-2: #0b1020;
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+  --accent: #22c55e;
+  --accent-2: #38bdf8;
+  --danger: #ef4444;
+  --grid-1: rgba(148, 163, 184, 0.1);
+  --grid-2: rgba(148, 163, 184, 0.06);
+}
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu,
+    Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji",
+    "Segoe UI Emoji";
+  color: var(--text);
+  background: var(--bg);
+}
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--panel);
+  border-bottom: 1px solid #1f2937;
+  gap: 12px;
+}
+.brand { font-weight: 700; letter-spacing: 0.2px; }
+.toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.toolbar button, .import-label {
+  background: #1f2937;
+  color: var(--text);
+  border: 1px solid #374151;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.toolbar .tool-button.active { outline: 2px solid var(--accent-2); }
+.toolbar .divider { width: 1px; height: 24px; background: #1f2937; margin: 0 4px; }
+.hint { color: var(--muted); font-size: 12px; }
+#file-import { display: none; }
+.import-label { cursor: pointer; user-select: none; }
+
+.app-body { display: grid; grid-template-columns: 260px 1fr 280px; height: calc(100% - 52px); }
+.palette, .inspector { background: var(--panel-2); border-right: 1px solid #1f2937; padding: 10px; overflow: auto; }
+.inspector { border-right: none; border-left: 1px solid #1f2937; }
+.palette h3, .inspector h3 { margin: 8px 0 12px 0; }
+.palette-items { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+.palette-item {
+  background: #0b1225;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 8px;
+  height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: grab;
+  user-select: none;
+}
+.palette-item:active { cursor: grabbing; }
+.palette-item svg { width: 64px; height: 64px; }
+.palette-item span { font-size: 12px; color: var(--muted); }
+
+.canvas-wrapper { position: relative; }
+.svg-container {
+  width: 100%;
+  height: 100%;
+  background-image:
+    linear-gradient(var(--grid-2) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-2) 1px, transparent 1px),
+    linear-gradient(var(--grid-1) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-1) 1px, transparent 1px);
+  background-size: 10px 10px, 10px 10px, 50px 50px, 50px 50px;
+  background-position: 0 0, 0 0, 0 0, 0 0;
+}
+#canvas { width: 100%; height: 100%; display: block; }
+
+.app-footer {
+  height: 28px;
+  display: flex; align-items: center; gap: 10px; padding: 0 10px;
+  border-top: 1px solid #1f2937; background: var(--panel);
+  color: var(--muted); font-size: 12px;
+}
+.app-footer a { color: var(--accent-2); text-decoration: none; }
+
+/* SVG styling */
+svg .element .body { fill: #0b1225; stroke: #64748b; stroke-width: 2; }
+svg .element .label { fill: #e5e7eb; font-size: 10px; font-family: ui-sans-serif, system-ui; }
+svg .connector { fill: #1f2937; stroke: #22c55e; stroke-width: 1.5; }
+svg .connector.active { fill: #22c55e; }
+svg .wire { stroke: #38bdf8; stroke-width: 2; fill: none; }
+svg .wire.active { stroke-dasharray: 4 4; }
+svg .selection { stroke: #fbbf24; stroke-width: 1.5; fill: none; pointer-events: none; }
+svg .selected .body { stroke: #f59e0b; }
+
+/* Buttons states */
+button:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; }
+button:hover, .import-label:hover { filter: brightness(1.1); }
+button#btn-delete { border-color: #7f1d1d; }
+
+/* Inspector */
+#inspector-content { font-size: 13px; color: var(--text); }
+#inspector-content input, #inspector-content select {
+  width: 100%; padding: 6px 8px; background: #0b1225; border: 1px solid #1e293b; border-radius: 6px; color: var(--text);
+}
+#inspector-content .row { display: grid; grid-template-columns: 80px 1fr; align-items: center; gap: 8px; margin-bottom: 8px; }
+
+/* Drag preview */
+.drag-preview { position: fixed; pointer-events: none; opacity: 0.9; transform: translate(-50%, -50%); }
+
+/* Utility */
+.hidden { display: none !important; }

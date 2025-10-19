@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QElectroTech Web (Analog)</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">QET Web (Analog)</div>
+    <div class="toolbar">
+      <button id="tool-select" data-tool="select" class="tool-button active" title="Select (V)">Select</button>
+      <button id="tool-wire" data-tool="wire" class="tool-button" title="Wire (W)">Wire</button>
+      <div class="divider"></div>
+      <button id="btn-undo" title="Undo (Ctrl+Z)">Undo</button>
+      <button id="btn-redo" title="Redo (Ctrl+Y)">Redo</button>
+      <div class="divider"></div>
+      <button id="btn-rotate-left" title="Rotate Left (R)">⟲</button>
+      <button id="btn-rotate-right" title="Rotate Right (Shift+R)">⟳</button>
+      <button id="btn-delete" title="Delete (Del)">Delete</button>
+      <div class="divider"></div>
+      <button id="btn-zoom-in" title="Zoom In (Ctrl +)">+</button>
+      <button id="btn-zoom-out" title="Zoom Out (Ctrl -)">−</button>
+      <button id="btn-zoom-reset" title="Reset Zoom (Ctrl 0)">100%</button>
+      <div class="divider"></div>
+      <button id="btn-export" title="Export JSON">Export</button>
+      <label class="import-label" for="file-import">Import</label>
+      <input id="file-import" type="file" accept="application/json" />
+      <button id="btn-save" title="Save to browser">Save</button>
+      <button id="btn-load" title="Load from browser">Load</button>
+      <div class="divider"></div>
+      <span class="hint">Pan: Space + drag • Zoom: Ctrl + Wheel</span>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <aside class="palette" id="palette">
+      <h3>Palette</h3>
+      <div class="palette-items" id="palette-items">
+        <!-- Items populated by components.js -->
+      </div>
+    </aside>
+
+    <main class="canvas-wrapper">
+      <div id="svg-container" class="svg-container">
+        <svg id="canvas" tabindex="0"></svg>
+      </div>
+    </main>
+
+    <aside class="inspector" id="inspector">
+      <h3>Inspector</h3>
+      <div id="inspector-content">
+        <p>No selection</p>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="app-footer">
+    <span>QElectroTech Web analogue — lightweight demo. Not affiliated with the original project.</span>
+    <a href="https://qelectrotech.org/" target="_blank" rel="noreferrer">Original app</a>
+  </footer>
+
+  <script type="module" src="./src/components.js"></script>
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
