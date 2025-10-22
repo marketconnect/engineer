@@ -99,6 +99,7 @@ svg .wire { stroke: #38bdf8; stroke-width: 2; fill: none; }
 svg .wire.active { stroke-dasharray: 4 4; }
 svg .selection { stroke: #fbbf24; stroke-width: 1.5; fill: none; pointer-events: none; }
 svg .selected .body { stroke: #f59e0b; }
+svg .selected .frame { stroke: #f59e0b; stroke-dasharray: 4; }
 
 /* Buttons states */
 button:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; }
