@@ -141,8 +141,9 @@ function addElement({ type, x, y, rot = 0, label = '' }) {
   pushHistory();
   const id = uid('el');
   const def = COMPONENT_DEFS[type];
-  const base = { id, type, x, y, rot, label };
-  if (def && isFrameType(type)) {
+  const isFrame = isFrameType(type);
+  const base = { id, type, x, y, rot, label, isFrame };
+  if (def && isFrame) {
     base.w = def.w;
     base.h = def.h;
   }
@@ -234,7 +235,7 @@ function updateInspector() {
     rIn.addEventListener('change', apply);
     lIn.addEventListener('change', apply);
 
-    if (def && isFrameType(el.type)) {
+    if (el.isFrame) {
       const { w, h } = getElementSize(el, def);
       const sizeRowW = document.createElement('div');
       sizeRowW.className = 'row';
@@ -253,6 +254,7 @@ function updateInspector() {
         if (!Number.isNaN(newWmm)) el.w = Math.max(10, mmToPx(newWmm));
         if (!Number.isNaN(newHmm)) el.h = Math.max(10, mmToPx(newHmm));
         render();
+        updateInspector();
       };
       wIn.addEventListener('change', applySize);
       hIn.addEventListener('change', applySize);
@@ -289,6 +291,7 @@ function render() {
     const def = COMPONENT_DEFS[el.type];
     const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     group.setAttribute('class', 'element' + (isElementSelected(el.id) ? ' selected' : ''));
+    if (el.isFrame) group.classList.add('is-frame');
     group.dataset.id = el.id;
 
     // body
